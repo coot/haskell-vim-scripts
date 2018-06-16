@@ -5,28 +5,24 @@
 "     https://github.com/purescript-contrib/vim-purescript
 
 setl indentexpr=GetHaskellIndent()
-setl indentkeys=!^F,o,O,},=where,=in,=::,=->,==>
-fun! s:GetSynStack(lnum, col)
+setl indentkeys=!^F,o,O,},=where,=in,=::,==,=->,==>
+
+fun! s:getSynStack(lnum, col)
   return map(synstack(a:lnum, a:col), { key, val -> synIDattr(val, "name") })
 endfun
 
+fun! s:isCommentOrString(lnum, col)
+  let ss = s:getSynStack(a:lnum, a:col)
+  if len(filter(ss, {idx, val -> val == 'hsString' || val == 'hsLineComment' || val == 'hsBlockComment'})) > 0
+    return v:true
+  else
+    return v:false
+  endif
+endfun
+
 " TODO:
-"   - case expressions (->)
-"   - I removed `in` from indent keys (`import`, ...)
 "   - indent `deriving` clause
-"   - import statements
-"   - 
-"     ```
-"     verifyHeaderParams
-"         :: Maybe (BlockHeader attr)
-"         -> Maybe SlotId
-"         -> Maybe SlotLeaders
-"         -> Maybe Byte
-"         -> Bool
-"         -> VerifyHeaderParams
-"     verify ph slotId leaders size verifyNoUnknown = VerifyHeaderParams {..}
-"     ```
-"     Last line will have a wrong indentation (`=l`)
+"   ```
 
 if !exists('g:haskell_indent_case')
   " ```
@@ -58,9 +54,6 @@ if !exists('g:haskell_indent_where')
   " where
   " >>>>f :: Int -> Int
   " >>>>f x = x
-
-  " instance Eq MyType where
-  " >>>>eq _ _ = False
   " ```
   let g:haskell_indent_where = 4
 endif
@@ -113,9 +106,9 @@ fun! GetHaskellIndent()
   let ppline	= getline(v:lnum - 2)
 
   let s = match(line, '\<in\>')
-  let ss = s:GetSynStack(v:lnum, s)
-  if s > 0 && index(s:GetSynStack(v:lnum, s), 'hsString') == -1
-    return indent(search('\<let\>', 'bnz'))
+  if s > 0 && !s:isCommentOrString(v:lnum, s)
+    let [l, c] = searchpos('\<let\>', 'bnz')
+    return c - 1
   endif
 
   let s = match(pline, '\v^\s*\zs--')
@@ -123,7 +116,7 @@ fun! GetHaskellIndent()
     return s
   endif
 
-  if line =~ '^\s*::'
+  if line =~ '^\s*\%(::\|=\)'
     return &l:shiftwidth
   endif
 
@@ -234,7 +227,7 @@ fun! GetHaskellIndent()
   let s = FindFirstNonClosedBracket(pline)
   " This pattern skips over `(..)`, `[..]` and `{..}` and matches first non
   " closed `(`, `{` or `[`.
-  if s >= 0 && index(s:GetSynStack(v:lnum - 1, s), 'hsString') == -1
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     let r = strpart(pline, s, 1)
     let q = strpart(pline, s + 1)
     if r == '{'  && pline =~ ';\s*$'
@@ -248,7 +241,7 @@ fun! GetHaskellIndent()
 
   " Find previous line with a smaller indentation if line ends with `)` or `]`
   " which does not close in the current line
-  if pline =~ '\%(\%(([^)]\{-}\)\@<!)\|\%(\[[^\]]\{-}\)\@<!\]\)'
+  if pline =~ '\%(\%(([^)]\{-}\)\@<!)\|\%(\[[^\]]\{-}\)\@<!\]\)' && pline =~ '^\s*[;,(\[{]'
     let n = v:lnum - 2
     let i = indent(v:lnum - 1)
     let in = indent(n)
@@ -280,6 +273,12 @@ fun! GetHaskellIndent()
 	" ->  
 	" ```
 	return s
+      elseif line =~ '^\s*\.'
+	" ```
+	" :: forall a<CR>. a -> a
+	" ```
+	" i.e. breaking an existing line
+	return s + 1
       elseif line !~ '^\s*\%(::\|=>\|->\)' && line !~ '^\s*$' && pline !~ '\.\s*$'
 	" first line after multiline type signature
 	return s - &l:shiftwidth
@@ -296,18 +295,28 @@ fun! GetHaskellIndent()
     endif
   endif
 
+  let s = match(pline, '\<case\>')
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
+    if pline =~ '^\s*let\>'
+      " TODO: find let block
+      return indent(v:lnum - 1) + 2 * &l:shiftwidth
+    else
+      return indent(v:lnum - 1) + &l:shiftwidth
+    endif
+  endif
+
   let s = match(pline, '\<let\>\s\+\zs\S')
-  if s >= 0 && index(s:GetSynStack(v:lnum - 1, s), 'hsString') == -1
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     return s
   endif
 
   let s = match(pline, '\<let\>\s*$')
-  if s >= 0 && index(s:GetSynStack(v:lnum - 1, s), 'hsString') == -1
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     return s + g:haskell_indent_let
   endif
 
   let s = match(pline, '\<let\>\s\+.\+\(\<in\>\)\?\s*$')
-  if s >= 0 && index(s:GetSynStack(v:lnum - 1, s), 'hsString') == -1
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     return match(pline, '\<let\>') + g:haskell_indent_let
   endif
 
@@ -326,7 +335,7 @@ fun! GetHaskellIndent()
   endif
 
   let s = match(pline, '=\s*$')
-  if s >= 0 && index(s:GetSynStack(v:lnum - 1, s), 'hsString') == -1
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     " ```
     " fold f as b =
     " >>>>
@@ -334,12 +343,12 @@ fun! GetHaskellIndent()
     return match(pline, '\S') + &l:shiftwidth
   endif
 
-  if pline =~ '^class'
-    return &l:shiftwidth
+  if pline =~ '^\s*class\>'
+    return indent(v:lnum - 1) + &l:shiftwidth
   endif
 
   let s = match(pline, '\<where\>\s*$')
-  if s >= 0 && index(s:GetSynStack(v:lnum - 1, s), 'hsString') == -1
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     if pline =~ '^\s*module\>'
       return 0
     else
@@ -370,28 +379,23 @@ fun! GetHaskellIndent()
   endif
 
   let s = match(pline, '\<where\>\s\+\zs\S\+.*$')
-  if s >= 0 && index(s:GetSynStack(v:lnum - 1, s), 'hsString') == -1
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     return s
   endif
 
   let s = match(pline, '\<do\>\s*$')
-  if s >= 0 && index(s:GetSynStack(v:lnum - 1, s), 'hsString') == -1
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     return match(pline, '\S') + &l:shiftwidth
   endif
 
   let s = match(pline, '\<do\>\s\+\zs\S\+.*$')
-  if s >= 0 && index(s:GetSynStack(v:lnum - 1, s), 'hsString') == -1
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     return s
   endif
 
   let s = match(pline, '^\s*\<data\>\s\+[^=]\+\s\+=\s\+\S\+.*$')
-  if s >= 0 && index(s:GetSynStack(v:lnum - 1, s), 'hsString') == -1
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     return match(pline, '=')
-  endif
-
-  let s = match(pline, '\<case\>')
-  if s >= 0 && index(s:GetSynStack(v:lnum - 1, s), 'hsString') == -1
-    return indent(pline) + &l:shiftwidth
   endif
 
   if pline =~ '^\s*\data\>'
@@ -399,17 +403,13 @@ fun! GetHaskellIndent()
   endif
 
   let s = match(pline, '^\s*[}\]]')
-  if s >= 0 && index(s:GetSynStack(v:lnum - 1, s), 'hsString') == -1
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     return match(pline, '\S') - &l:shiftwidth
   endif
 
-  let s =match(pline, '^\s*import\s\+.\{-}\zs(')
+  let s = match(pline, '^\s*\zsnewtype\>[^=]*$')
   if s >= 0
-    if match(pline, ',\s*$')
-      return match(pline, '(\s*\zs\S')
-    else
-      return s
-    endif
+    return s + &l:shiftwidth
   endif
 
   let s = match(line, '^\s*import\>')
