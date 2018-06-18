@@ -1,11 +1,9 @@
 " Haskell indentation script
 " Author: Marcin Szamotulski (profunctor@pm.me)
 " Maintainer: Marcin Szamotulski (profunctor@pm.me)
-" Based on PureScript indentation script
-"     https://github.com/purescript-contrib/vim-purescript
 
 setl indentexpr=GetHaskellIndent()
-setl indentkeys=!^F,o,O,},=where,=in,=::,==,=->,==>
+setl indentkeys=!^F,o,O,},=where,=in,=deriving,=::,==,=->,==>
 
 fun! s:getSynStack(lnum, col)
   return map(synstack(a:lnum, a:col), { key, val -> synIDattr(val, "name") })
@@ -19,10 +17,6 @@ fun! s:isCommentOrString(lnum, col)
     return v:false
   endif
 endfun
-
-" TODO:
-"   - indent `deriving` clause
-"   ```
 
 if !exists('g:haskell_indent_case')
   " ```
@@ -163,7 +157,7 @@ fun! GetHaskellIndent()
   let s = match(pline, '\v%(^\k+\s*)@<=::')
   let r = strpart(pline, s)
   let t = r  =~ '[-=]>$'
-  if s >= 0 && (r !~ '[-=]>' || t)
+  if s >= 0 && (r !~ '[-=]>' || t) && line !~ '='
     if t
       " ```
       " f :: String ->
@@ -343,8 +337,23 @@ fun! GetHaskellIndent()
     return match(pline, '\S') + &l:shiftwidth
   endif
 
-  if pline =~ '^\s*class\>'
-    return indent(v:lnum - 1) + &l:shiftwidth
+  let s = match(pline, '^\s*\zsclass\>')
+  if s >= 0
+    return s + &l:shiftwidth
+  endif
+
+  if line =~ '^\s*deriving\>'
+    let n = v:lnum - 1
+    let l = pline
+    while n > 0 && l !~ '^\s*$'
+      let s = match(l, '^\s*\%(data\|newtype\)\>')
+      if s >= 0
+	return s + &l:shiftwidth
+      endif
+      let n -= 1
+      let l = getline(n)
+    endwhile
+    return 0
   endif
 
   let s = match(pline, '\<where\>\s*$')
@@ -393,13 +402,14 @@ fun! GetHaskellIndent()
     return s
   endif
 
-  let s = match(pline, '^\s*\<data\>\s\+[^=]\+\s\+=\s\+\S\+.*$')
-  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
-    return match(pline, '=')
+  let s = match(pline, '^\s*\zs\%(newtype\|data\)\s\+[^=]\+\s*=\s*\S.*$')
+  if s >= 0
+    return s
   endif
 
-  if pline =~ '^\s*\data\>'
-    return match(pline, '\<data\>') + &l:shiftwidth
+  let s = match(pline, '^\s*\zs\%(data\|newtype\)\>[^=]*$')
+  if s >= 0
+    return s + &l:shiftwidth
   endif
 
   let s = match(pline, '^\s*[}\]]')
@@ -407,10 +417,16 @@ fun! GetHaskellIndent()
     return match(pline, '\S') - &l:shiftwidth
   endif
 
-  let s = match(pline, '^\s*\zsnewtype\>[^=]*$')
-  if s >= 0
-    return s + &l:shiftwidth
-  endif
+  let n = v:lnum - 1
+  let l = pline
+  while n > 0 && l !~ '^\s*$'
+    let s = match(l, '^\s*import\>')
+    if s >= 0
+      return s
+    endif
+    let n -= 1
+    let l = getline(n)
+  endwhile
 
   let s = match(line, '^\s*import\>')
   if s >= 0
