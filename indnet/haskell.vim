@@ -110,7 +110,7 @@ fun! GetHaskellIndent()
     return s
   endif
 
-  if line =~ '^\s*\%(::\|=\)'
+  if line =~ '^\s*\%(::\|=\)\>'
     return &l:shiftwidth
   endif
 
@@ -387,6 +387,10 @@ fun! GetHaskellIndent()
     return s + &l:shiftwidth
   endif
 
+  if line =~ '^\s*\zs\<where\>'
+    return indent(v:lnum - 1) + &l:shiftwidth
+  endif
+
   let s = match(pline, '\<where\>\s\+\zs\S\+.*$')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     return s
@@ -419,14 +423,17 @@ fun! GetHaskellIndent()
 
   let n = v:lnum - 1
   let l = pline
-  while n > 0 && l !~ '^\s*$'
-    let s = match(l, '^\s*import\>')
-    if s >= 0
-      return s
-    endif
-    let n -= 1
-    let l = getline(n)
-  endwhile
+  let s = searchpair('(', '', ')', 'bn')
+  if s == 0
+    while n > 0 && l !~ '^\s*$'
+      let s = match(l, '^\s*import\>')
+      if s >= 0
+	return s
+      endif
+      let n -= 1
+      let l = getline(n)
+    endwhile
+  endif
 
   let s = match(line, '^\s*import\>')
   if s >= 0
