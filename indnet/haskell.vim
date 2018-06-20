@@ -181,6 +181,20 @@ fun! GetHaskellIndent()
     return indent(n) - &l:shiftwidth
   endif
 
+  if line =~ '^\s*deriving\>'
+    let n = v:lnum - 1
+    let l = pline
+    while n > 0 && l !~ '^\s*$'
+      let s = match(l, '^\s*\zs\%(data\|newtype\)\>')
+      if s >= 0
+	return s + &l:shiftwidth
+      endif
+      let n -= 1
+      let l = getline(n)
+    endwhile
+    return 0
+  endif
+
   let s = match(pline, '|')
   if s > 0
     if line =~ '^\s*\%($\||\)'
@@ -340,20 +354,6 @@ fun! GetHaskellIndent()
   let s = match(pline, '^\s*\zsclass\>')
   if s >= 0
     return s + &l:shiftwidth
-  endif
-
-  if line =~ '^\s*deriving\>'
-    let n = v:lnum - 1
-    let l = pline
-    while n > 0 && l !~ '^\s*$'
-      let s = match(l, '^\s*\%(data\|newtype\)\>')
-      if s >= 0
-	return s + &l:shiftwidth
-      endif
-      let n -= 1
-      let l = getline(n)
-    endwhile
-    return 0
   endif
 
   let s = match(pline, '\<where\>\s*$')
