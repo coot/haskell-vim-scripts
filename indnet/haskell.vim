@@ -3,7 +3,7 @@
 " Maintainer: Marcin Szamotulski (profunctor@pm.me)
 
 setl indentexpr=GetHaskellIndent()
-setl indentkeys=!^F,o,O,},=where,=in,=deriving,=::,==,=->,==>
+setl indentkeys=!^F,o,O,},=where,=in,=deriving,=::,==,=->,==>,=\|
 
 fun! s:getSynStack(lnum, col)
   return map(synstack(a:lnum, a:col), { key, val -> synIDattr(val, "name") })
@@ -98,6 +98,7 @@ fun! GetHaskellIndent()
   let line	= getline(v:lnum)
   let pline	= getline(v:lnum - 1)
   let ppline	= getline(v:lnum - 2)
+  let nline     = getline(v:lnum + 1)
 
   let s = match(line, '\<in\>')
   if s > 0 && !s:isCommentOrString(v:lnum, s)
@@ -213,7 +214,12 @@ fun! GetHaskellIndent()
   if line =~ '^\s*|'
     " line which starts with `|`, but previous line has no `|` (matched by
     " previous group).
-    return indent(v:lnum - 1) + &l:shiftwidth
+    let s = match(pline, '=')
+    if s >= 0
+      return s
+    else
+      return indent(v:lnum - 1) + &l:shiftwidth
+    endif
   endif
 
   " ```
@@ -403,6 +409,11 @@ fun! GetHaskellIndent()
 
   let s = match(pline, '\<do\>\s\+\zs\S\+.*$')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
+    return s
+  endif
+
+  let s = match(pline, '^\s*data\>.\{-}\zs=')
+  if s >= 0 && nline =~ '^\s*|'
     return s
   endif
 
