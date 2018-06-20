@@ -348,7 +348,7 @@ fun! GetHaskellIndent()
     return p + &l:shiftwidth
   endif
 
-  let s = match(pline, '=\s*$')
+  let s = match(pline, '[)\][:alpha:][:space:]]\zs=\s*$')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     " ```
     " fold f as b =
@@ -422,7 +422,7 @@ fun! GetHaskellIndent()
     return s
   endif
 
-  let s = match(pline, '^\s*\zs\%(data\|newtype\)\>[^=]*$')
+  let s = match(pline, '^\s*\zs\%(newtype\|data\)\>[^=]*$')
   if s >= 0
     return s + &l:shiftwidth
   endif
