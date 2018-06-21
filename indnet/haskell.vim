@@ -309,6 +309,10 @@ fun! GetHaskellIndent()
     endif
   endif
 
+  if pline =~ '[^-]->\s*$'
+    return indent(v:lnum - 1) + &l:shiftwidth
+  endif
+
   let s = match(pline, '\<case\>')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     if pline =~ '^\s*let\>'
