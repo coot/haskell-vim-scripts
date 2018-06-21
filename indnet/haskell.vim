@@ -3,7 +3,7 @@
 " Maintainer: Marcin Szamotulski (profunctor@pm.me)
 
 setl indentexpr=GetHaskellIndent()
-setl indentkeys=!^F,o,O,},=where,=in,=deriving,=::,==,=->,==>,=\|
+setl indentkeys=!^F,o,O,},=where,=in,=deriving,=::,==,=->,==>,=\|,=\{
 
 fun! s:getSynStack(lnum, col)
   return map(synstack(a:lnum, a:col), { key, val -> synIDattr(val, "name") })
@@ -255,7 +255,10 @@ fun! GetHaskellIndent()
 
   " Find previous line with a smaller indentation if line ends with `)` or `]`
   " which does not close in the current line
-  if pline =~ '\%(\%(([^)]\{-}\)\@<!)\|\%(\[[^\]]\{-}\)\@<!\]\)' && pline =~ '^\s*[;,(\[{]'
+  "
+  " This pattern will not match `{ }` or `{ } { }` but it will match on
+  " `{ { } }` (where it should not).
+  if pline =~ '\%(\%(([^)]\{-}\)\@<!)\|\%(\[[^\]]\{-}\)\@<!\]\|\%({[^}]\{-}\)\@<!}\)\s*$'
     let n = v:lnum - 2
     let i = indent(v:lnum - 1)
     let in = indent(n)
@@ -265,6 +268,12 @@ fun! GetHaskellIndent()
       let in = indent(n)
     endwhile
     return in
+  endif
+
+  " Indent record fields
+  if line =~ '^\s*{' && pline =~ '[^=]=\s*\k'
+    "  previous line ` = TypeConstructor ...
+    return indent(v:lnum - 1) + &l:shiftwidth
   endif
 
   let s = match(pline, '::')
@@ -463,7 +472,7 @@ fun! GetHaskellIndent()
   let s = searchpair('(', '', ')', 'bn')
   if s == 0
     while n > 0 && l !~ '^\s*$'
-      let s = match(l, '^\s*import\>')
+      let s = match(l, '^\s*\zsimport\>')
       if s >= 0
 	return s
       endif
