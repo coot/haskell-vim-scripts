@@ -362,6 +362,11 @@ fun! GetHaskellIndent()
     return s + &l:shiftwidth
   endif
 
+  let s = match(pline, '^\s*\zsmodule.\{-}\%(\<where\s*\)\@<!$')
+  if s >= 0
+    return s + &l:shiftwidth
+  endif
+
   let s = match(pline, '\<where\>\s*$')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     if pline =~ '^\s*module\>'
@@ -370,6 +375,7 @@ fun! GetHaskellIndent()
       " module Main (...) where
       " class Eq ... where
       " instance Eq ... where
+      " data (GADTs)
       let n = v:lnum - 1
       let l = getline(n)
       while n >= 0 &&  l !~ '^\s*$'
@@ -377,7 +383,7 @@ fun! GetHaskellIndent()
 	if s >= 0
 	  return s
 	endif
-	let s = match(l, '\C^\%(class\|instance\)\>')
+	let s = match(l, '\C^\s*\zs\%(class\|instance\|data\)\>')
 	if s >= 0
 	  return s + &l:shiftwidth
 	endif
@@ -393,8 +399,24 @@ fun! GetHaskellIndent()
     return s + &l:shiftwidth
   endif
 
-  if line =~ '^\s*\zs\<where\>'
-    return indent(v:lnum - 1) + &l:shiftwidth
+  if line =~ '^\s*where\>'
+    let n = v:lnum - 1
+    let s = match(l, '[^=]\zs=\%([^=]\|$\)')
+    while n > 0 && s == -1
+      let n -= 1
+      let l = getline(n)
+      let s = match(l, '[^=]\zs=\%([^=]\|$\)')
+      if s >= 0
+	return indent(n + 1)
+      endif
+      let s = match(l, '\C^\s*\zs\%(class\|instance\|data\|module\)\>')
+      if s >= 0
+	return s + &l:shiftwidth
+      endif
+      if l =~ '^\s*\%(type\|newtype\|deriving\)\>'
+	break
+      endif
+    endwhile
   endif
 
   let s = match(pline, '\<where\>\s\+\zs\S\+.*$')
