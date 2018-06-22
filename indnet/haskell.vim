@@ -115,6 +115,16 @@ fun! GetHaskellIndent()
     return &l:shiftwidth
   endif
 
+  let s = match(pline, '::\s*\zsforall\>.*\.\s*$')
+  if s >= 0 && search('^\s*=>', 'nW', (search('^\S', 'nW') || v:lnum + 21) - 1)
+    " ```
+    " f :: forall a .
+    "      Show a
+    "   =>
+    " ```
+    return s
+  endif
+
   let s = match(pline, '\v%(^\k+\s*::\s*)@<=\([^)]*$')
   if s >= 0
     " ```
