@@ -3,7 +3,7 @@
 " Maintainer: Marcin Szamotulski (profunctor@pm.me)
 
 setl indentexpr=GetHaskellIndent()
-setl indentkeys=!^F,o,O,},=where,=in,=deriving,=::,==,=->,==>,=\|,=\{
+let &indentkeys="!^F,o,O,},=where,=in,=deriving,=::,==,=->,==>,=|,={"
 
 fun! s:getSynStack(lnum, col)
   return map(synstack(a:lnum, a:col), { key, val -> synIDattr(val, "name") })
