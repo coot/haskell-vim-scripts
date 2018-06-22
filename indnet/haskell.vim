@@ -111,7 +111,7 @@ fun! GetHaskellIndent()
     return s
   endif
 
-  if line =~ '^\s*\%(::\|=\)\>'
+  if line =~ '^\s*\%(::\|=\)'
     return &l:shiftwidth
   endif
 
