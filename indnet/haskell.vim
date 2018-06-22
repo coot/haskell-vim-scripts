@@ -414,13 +414,20 @@ fun! GetHaskellIndent()
 
   if line =~ '^\s*where\>'
     let n = v:lnum - 1
-    let s = match(l, '[^=]\zs=\%([^=]\|$\)')
+    let l = pline
+    let s = match(l, '\%([^=]\zs=\%([^=]\|$\)\|<-\)')
     while n > 0 && s == -1
       let n -= 1
       let l = getline(n)
+      " a line with `=`, but not one that sets fields of a product.
       let s = match(l, '[^=]\zs=\%([^=]\|$\)')
-      if s >= 0
+      if s >= 0 && l !~ '^\s*[\[{,]'
 	return indent(n + 1)
+      endif
+      " let and <- in a do context
+      let s = match(l , '<-')
+      if (s >= 0 && l !~ '^\s*[\[{,]') || l =~ '^\s*let\>'
+	return indent(n)
       endif
       let s = match(l, '\C^\s*\zs\%(class\|instance\|data\|module\)\>')
       if s >= 0
