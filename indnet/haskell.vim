@@ -296,6 +296,12 @@ fun! GetHaskellIndent()
 	" ->  
 	" ```
 	return s
+      elseif pline =~ '^\s*->\s*$'
+	" -> in a case expression
+	return match(pline, '->\zs') + 1
+      elseif pline =~ '->\s*$'
+	" -> in a case expression
+	return indent(v:lnum - 1) + &l:shiftwidth
       elseif line =~ '^\s*\.'
 	" ```
 	" :: forall a<CR>. a -> a
