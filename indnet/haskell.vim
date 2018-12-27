@@ -3,7 +3,9 @@
 " Maintainer: Marcin Szamotulski (profunctor@pm.me)
 
 setl indentexpr=GetHaskellIndent()
-let &indentkeys="!^F,o,O,},=where,=in,=deriving,=::,==,=->,==>,=|,={"
+let &indentkeys="!^F,o,O,},=where,=in\ ,=deriving,=::,==\ ,=->,==>,=|,={"
+
+" TODO:
 
 fun! s:getSynStack(lnum, col)
   return map(synstack(a:lnum, a:col), { key, val -> synIDattr(val, "name") })
@@ -92,18 +94,37 @@ fun! FindFirstNonClosedBracket(line)
   endif
 endfun
 
+fun! InGADTClause()
+  let stop_line = search('^\S', 'bnW')
+  return search('^\s*data\>.*\<where\>', 'bnW', stop_line) != 0
+endfun
+
+fun! GetLineIdent(line)
+  return match(line, '^\s*\zs\k\+')
+endfun
+
 fun! GetHaskellIndent()
   let col	= v:col
   let lnum	= v:lnum
+  let col_      = getcurpos()[2]
   let line	= getline(v:lnum)
   let pline	= getline(v:lnum - 1)
   let ppline	= getline(v:lnum - 2)
   let nline     = getline(v:lnum + 1)
 
-  let s = match(line, '\<in\>')
+  let inGADT    = InGADTClause()
+
+  let s = match(line, '\<in\s')
   if s > 0 && !s:isCommentOrString(v:lnum, s)
-    let [l, c] = searchpos('\<let\>', 'bnz')
+    let [l, c] = searchpos('\<let\>', 'bnzW')
     return c - 1
+  endif
+
+  " Short cut to not reindent current line
+  " Otherwise this might happend if the previous line has a non closed
+  " bracket.
+  if line =~ '^\(instance\|class\|deriving\)'
+    return 0
   endif
 
   let s = match(pline, '\v^\s*\zs--')
@@ -111,8 +132,12 @@ fun! GetHaskellIndent()
     return s
   endif
 
-  if line =~ '^\s*\%(::\|=\)'
-    return &l:shiftwidth
+  if line =~ '^\s*\%(::\|=\%($\|\s\)\)'
+    return indent(v:lnum - 1) + &l:shiftwidth
+  endif
+
+  if line[:col_ - 2] =~ '::.*::$'
+    return indent(v:lnum)
   endif
 
   let s = match(pline, '::\s*\zsforall\>.*\.\s*$')
@@ -125,15 +150,14 @@ fun! GetHaskellIndent()
     return s
   endif
 
-  let s = match(pline, '\v%(^\k+\s*::\s*)@<=\([^)]*$')
+  let s = match(pline, '\v%(^\s*\k*\s*::\s*)@<=\([^)]*$')
   if s >= 0
     " ```
     " f :: ( Eq a
-    "      , 
+    "      ,
     " ```
-    let r = 
     let o = 0
-    for x in split(pline[s:], '\zs') 
+    for x in split(pline[s:], '\zs')
       if x == "("
 	let o += 1
       elseif x == ")"
@@ -155,7 +179,7 @@ fun! GetHaskellIndent()
     " ```
     let n = v:lnum - 1
     let l = getline(n)
-    while n >= 0 && l !~ '^\k*\s*::' && l !~ '^\s*$'
+    while n >= 0 && l !~ '^\s*\k*\s*::' && l !~ '^\s*$'
       let n -= 1
       let l = getline(n)
     endwhile
@@ -165,32 +189,42 @@ fun! GetHaskellIndent()
     endif
   endif
 
-  let s = match(pline, '\v%(^\k+\s*)@<=::')
-  let r = strpart(pline, s)
+  let u = match(pline,  '\v%(^\s*\k*\s*)@<=::')
+  let r = strpart(pline, u)
   let t = r  =~ '[-=]>$'
-  if s >= 0 && (r !~ '[-=]>' || t) && line !~ '='
+  if !inGADT && (u >= 0) && (r !~ '[-=]>' || t) && line !~ '=' && line !~ '}' && searchpair('{', '', '}', 'bnW') == 0
     if t
       " ```
       " f :: String ->
       "	     String
       " ```
-      return match(pline, '\v^\k+\s*::\s*\zs')
+      return match(pline,  '\v^\s*\k+\s*::\s*\zs')
     else
       " ```
       " f :: String
       "   -> String
       " ```
-      return s
+      return u
     endif
   endif
 
-  if line =~ '^\s*' && pline =~ '^\s*$' && ppline =~ '^\s*$'
-    let n = v:lnum - 2
-    while n >= 0 && getline(n) =~ '^\s*$'
-      let n -= 1
-    endwhile
-    return indent(n) - &l:shiftwidth
+  let s = match(line, '^\s*=>')
+  if s >= 0
+    let l = search('::', 'bnW', line(".") - 10)
+    if l >= 0
+      return match(getline(l), '::')
+    else
+      return indent(lnum - 1)
+    endif
   endif
+
+  " if line =~ '^\s*' && pline =~ '^\s*$' && ppline =~ '^\s*$'
+    " let n = v:lnum - 2
+    " while n >= 0 && getline(n) =~ '^\s*$'
+      " let n -= 1
+    " endwhile
+    " return indent(n) - &l:shiftwidth
+  " endif
 
   if line =~ '^\s*deriving\>'
     let n = v:lnum - 1
@@ -206,32 +240,6 @@ fun! GetHaskellIndent()
     return 0
   endif
 
-  let s = match(pline, '|')
-  if s > 0
-    if line =~ '^\s*\%($\||\)'
-      " empty line or line that starts with `|`
-      return s
-    else
-      " find first line with `|`
-    endif
-    let l = v:lnum - 1
-    while l >= 0 && getline(l - 1) =~ '|'
-      let l -= 1
-    endwhile
-    return indent(l)
-  endif
-
-  if line =~ '^\s*|'
-    " line which starts with `|`, but previous line has no `|` (matched by
-    " previous group).
-    let s = match(pline, '=')
-    if s >= 0
-      return s
-    else
-      return indent(v:lnum - 1) + &l:shiftwidth
-    endif
-  endif
-
   " ```
   " ( abc
   " , def
@@ -240,13 +248,13 @@ fun! GetHaskellIndent()
   "   def,
   "
   " { abc
-  " ; 
+  " ;
   "
   " { abc ;
   "   def
   "
   " ( Text (..)
-  " , 
+  " ,
   " ```
   let s = FindFirstNonClosedBracket(pline)
   " This pattern skips over `(..)`, `[..]` and `{..}` and matches first non
@@ -256,11 +264,28 @@ fun! GetHaskellIndent()
     let q = strpart(pline, s + 1)
     if r == '{'  && pline =~ ';\s*$'
       return match(pline, '{\s*\zs[^}]\S')
+    elseif pline =~ '^\s*import' && pline =~ ',\s*$'
+      return match(pline, '^\s*import\s\+\zs\S') + &l:shiftwidth
     elseif (r == '(' || r == '[') && pline =~ ',\s*$'
       return s + 1 + match(q, '\s*\zs\S')
-    else
+    elseif (r == '(' || r == '[')
       return s
+    else
+      if pline =~ '{\s*$'
+	" Data {
+	" --x
+	return indent(v:lnum -1) + 2 * &l:sw
+      else
+	" Data {
+	" -----x
+	return s
+      endif
     endif
+  endif
+
+  " Do not change indentation on lines where NamedFieldPuns are used.
+  if lastPairCurly == 0 && line[col_ - 2] == '}'
+    return indent(v:lnum)
   endif
 
   " Find previous line with a smaller indentation if line ends with `)` or `]`
@@ -268,7 +293,15 @@ fun! GetHaskellIndent()
   "
   " This pattern will not match `{ }` or `{ } { }` but it will match on
   " `{ { } }` (where it should not).
-  if pline =~ '\%(\%(([^)]\{-}\)\@<!)\|\%(\[[^\]]\{-}\)\@<!\]\|\%({[^}]\{-}\)\@<!}\)\s*$'
+  " ( )
+  let matched = v:false
+  if pline =~ '[)\]}]\s*$'
+    call cursor(v:lnum - 1, len(pline))
+    let matched = searchpair('[({\[]', '', '[)}\]', 'bnW', '', v:lnum)
+    call cursor(v:lnum, v:col)
+  endif
+
+  if matched
     let n = v:lnum - 2
     let i = indent(v:lnum - 1)
     let in = indent(n)
@@ -286,6 +319,16 @@ fun! GetHaskellIndent()
     return indent(v:lnum - 1) + &l:shiftwidth
   endif
 
+  let u = match(ppline, '\v%(^\s*\k*\s*)@<=::')
+  if u >= 0 && line =~ '^\s*[=-]>' && indent(v:lnum - 2) < indent(v:lnum - 1)
+      " ```
+      " f :: forall a b .
+      "      a
+      "   ->
+      " ```
+      return u
+  endif
+
   let s = match(pline, '::')
   if s >= 0 && line =~ '^\s*[=-]>'
     " When opening a new line with `->`:
@@ -296,49 +339,7 @@ fun! GetHaskellIndent()
     return s
   endif
 
-  let s = match(pline, '^\s*\zs\%(::\|=>\|->\)')
-  let r = match(pline, '^\s*\zs\.')
-  if s >= 0 || (r >= 0 && ppline =~ '::')
-    if s >= 0
-      if pline =~ '\.\s*$'
-	" ```
-	" :: forall a .
-	" ->  
-	" ```
-	return s
-      elseif pline =~ '^\s*->\s*$'
-	" -> in a case expression
-	return match(pline, '->\zs') + 1
-      elseif pline =~ '->\s*$'
-	" -> in a case expression
-	return indent(v:lnum - 1) + &l:shiftwidth
-      elseif line =~ '^\s*\.'
-	" ```
-	" :: forall a<CR>. a -> a
-	" ```
-	" i.e. breaking an existing line
-	return s + 1
-      elseif line !~ '^\s*\%(::\|=>\|->\)' && line !~ '^\s*$' && pline !~ '\.\s*$'
-	" first line after multiline type signature
-	return s - &l:shiftwidth
-      else
-	return s
-      endif
-    elseif r >= 0
-      " ```
-      " :: forall a
-      "  . a
-      " ->
-      " ```
-      return r - r % 2
-    endif
-  endif
-
-  if pline =~ '[^-]->\s*$'
-    return indent(v:lnum - 1) + &l:shiftwidth
-  endif
-
-  let s = match(pline, '\<case\>')
+  let s = match(pline, '\\\@<!\<case\>')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     if pline =~ '^\s*let\>'
       " TODO: find let block
@@ -348,9 +349,23 @@ fun! GetHaskellIndent()
     endif
   endif
 
+  if pline =~ '\\case\>'
+    return indent(v:lnum - 1) + &l:shiftwidth
+  endif
+
   let s = match(pline, '\<let\>\s\+\zs\S')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
-    return s
+    if line !~ '^\s*$' && indent(v:lnum) == indent(v:lnum - 1)
+      " preserve indentation, this is useful in do blocks:
+      " ```
+      " do 
+      "	  let a = 1
+      "	  return a  -- avoid reindenint 
+      " ```
+      return indent(v:lnum)
+    else
+      return s
+    endif
   endif
 
   let s = match(pline, '\<let\>\s*$')
@@ -363,12 +378,12 @@ fun! GetHaskellIndent()
     return match(pline, '\<let\>') + g:haskell_indent_let
   endif
 
-  let s = searchpairpos('\%(--.\{-}\)\@<!\<if\>', '\<then\>', '\<else\>.*\zs$', 'bnrc')[0]
+  let s = searchpairpos('\%(--.\{-}\)\@<!\<if\>', '\<then\>', '\<else\>.*\zs$', 'bnrcW')[0]
   if s > 0
     " this rule ensures that using `=` in visual mode will correctly indent
     " `if then else`, but it does not handle lines after `then` and `else`
     if line =~ '\<\%(then\|else\)\>'
-      return match(getline(s), '\<if\>') + &l:shiftwidth
+      return indent(s) + &l:shiftwidth
     endif
   endif
 
@@ -378,7 +393,7 @@ fun! GetHaskellIndent()
   endif
 
   let s = match(pline, '[)\][:alpha:][:space:]]\zs=\s*$')
-  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s + 1)
     " ```
     " fold f as b =
     " >>>>
@@ -397,9 +412,13 @@ fun! GetHaskellIndent()
   endif
 
   let s = match(pline, '\<where\>\s*$')
-  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
+  let g = s:isCommentOrString(v:lnum - 1, s + 1)
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s + 1)
+    let s = match(pline, '\C^\s*\zs\%(class\|instance\|data\)\>')
     if pline =~ '^\s*module\>'
       return 0
+    elseif s >= 0
+      return s + &l:shiftwidth
     else
       " module Main (...) where
       " class Eq ... where
@@ -407,7 +426,7 @@ fun! GetHaskellIndent()
       " data (GADTs)
       let n = v:lnum - 1
       let l = getline(n)
-      while n >= 0 &&  l !~ '^\s*$'
+      while n >= 0 &&  l !~ '^\s*$' && l !~ '\<where\>'
 	let s = match(l, '\C^module\>')
 	if s >= 0
 	  return s
@@ -420,12 +439,24 @@ fun! GetHaskellIndent()
 	let l = getline(n)
       endwhile
     endif
-    return match(pline, '\S') + g:haskell_indent_where
+    return match(pline, '\S') + abs(g:haskell_indent_where)
   endif
 
   let s = match(pline, '\C^\s*\zsinstance\>')
   if s >= 0
     return s + &l:shiftwidth
+  endif
+
+  if line =~ '^\s*where\>\s*$' && g:haskell_indent_where < 0
+    let s = search('^\S', 'bnW')
+    if s > 0
+      let l = getline(s)
+      if l =~ '^instance'
+	return &l:shiftwidth + &l:shiftwidth / 2
+      endif
+    endif
+    return &l:shiftwidth / 2
+    " return indent(v:lnum - 1) + g:haskell_indent_where
   endif
 
   if line =~ '^\s*where\>'
@@ -465,9 +496,44 @@ fun! GetHaskellIndent()
     return match(pline, '\S') + &l:shiftwidth
   endif
 
-  let s = match(pline, '\<do\>\s\+\zs\S\+.*$')
+  let s = match(pline, '\%(->[[:space:]$]*\)\@<!\<do\>\s\+\zs\S\+.*$')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     return s
+  endif
+
+  let s = match(pline, '\_s\zs|\_s')
+  if s > 0
+    if line =~ '^\s*\%($\||\)'
+      " empty line or line that starts with `|`
+      return s
+    else
+      " find first line with `|`
+    endif
+    let l = v:lnum - 1
+    while l >= 0 && getline(l - 1) =~ '\_s|\_s'
+      let l -= 1
+    endwhile
+    return indent(l)
+  endif
+
+  if line =~ '^\s*|'
+    " line which starts with `|`, but previous line has no `|` (matched by
+    " previous group).
+    let s = match(pline, '=')
+    if s >= 0
+      return s
+    else
+      return indent(v:lnum - 1) + &l:shiftwidth
+    endif
+  endif
+
+  if pline =~ '[^-]->\s*$'
+    return indent(v:lnum - 1) + &l:shiftwidth
+  endif
+
+  if line =~ '[^-]->\s*\%(do\)\?\s*$' && line !~ '::'
+    let s = search('\\\?\<case\>', 'bnW')
+    return indent(s) + &l:shiftwidth
   endif
 
   let s = match(pline, '^\s*data\>.\{-}\zs=')
@@ -490,18 +556,112 @@ fun! GetHaskellIndent()
     return match(pline, '\S') - &l:shiftwidth
   endif
 
+  " Two cases of
+  " ```
+  " zzzzz {
+  "     uuu,
+  "     vvv, <- next line, previous ends with ','
+  "     www  <-
+  "  } <- line of the closing paren
+  " ```
+  "
+  " This rule is one of the last, so that indentation within a record puns
+  " takes precedence, e.g.
+  " ```
+  " ... {
+  "	x = \x -> do
+  "	  return x,
+  " ```
+  let lastPairCurly = searchpair('{', '', '}', 'bnW')
+  if pline !~ ',\s*$' && (lastPairCurly != 0 || line =~ '^[^{]*}\s*$')
+    " previous line not ending with ','
+    if getline(lastPairCurly) =~ '{\s*$'
+      return indent(v:lnum - 1) - &l:sw
+    else
+      let s = match(pline, '[{,]')
+      if s >= 0
+	return s
+      else
+	if getline(lastPairCurly) =~ '^\s*{'
+	  return indent(lastPairCurly - 1)
+	else
+	  return indent(lastPairCurly)
+      endif
+    endif
+  elseif lastPairCurly
+    " other lines (maybe this block should be moved down, so other things
+    " take a precedence over this one)
+    let s = search('{\s*$', 'bW')
+    return indent((s > 0 ? s + 1 : v:lnum - 1))
+  endif
+
+  " Must be after the record puns rule (the above one), otherwise closing
+  " bracket of newtype records will not be indented correctly.
+  let s = match(pline, '^\s*\%(\f\+\)\?\s*\zs\%(::\|=>\|->\)')
+  let r = match(pline, '^\s*\zs\.')
+  if s >= 0 || (r >= 0 && ppline =~ '::')
+    if s >= 0
+      if line =~ '^\s*\k'
+	" first line after a type signature
+	return indent(v:lnum - 1) - &l:shiftwidth
+      elseif pline =~ '\.\s*$'
+	" ```
+	" :: forall a .
+	" ->
+	" ```
+	return s
+      elseif pline =~ '^\s*->\s*$'
+	" -> in a case expression
+	return match(pline, '->\zs') + 1
+      elseif pline =~ '->\s*$'
+	" -> in a case expression
+	return indent(v:lnum - 1) + &l:shiftwidth
+      elseif line =~ '^\s*\.'
+	" ```
+	" :: forall a<CR>. a -> a
+	" ```
+	" i.e. breaking an existing line
+	return s + 1
+      else
+	return indent(v:lnum - 1)
+      endif
+    elseif r >= 0
+      " ```
+      " :: forall a
+      "  . a
+      " ->
+      " ```
+      if ppline =~ '^\s*\%([=-]>\|::\)'
+	return indent(v:lnum - 2)
+      elseif ppline =~ '::'
+	return match(ppline, '::')
+      else
+	return indent(v:lnum - 2)
+      endif
+    endif
+  endif
+
   let n = v:lnum - 1
   let l = pline
-  let s = searchpair('(', '', ')', 'bn')
+  call cursor(v:lnum, 0)
+  let ident = GetLineIdent(v:lnum)
+  let s = searchpair('(', '', ')', 'bnW')
   if s == 0
     while n > 0 && l !~ '^\s*$'
       let s = match(l, '^\s*\zsimport\>')
       if s >= 0
 	return s
+      elseif GetLineIdent(l) == ident
+	"   someFunction a b =
+	"      do ...
+	"   somFunction
+	return s
       endif
       let n -= 1
       let l = getline(n)
     endwhile
+  " elseif getline(s) =~ '^\s*import\>'
+    " return match(getline(s), '^\s*\zsimport\>')
   endif
 
   let s = match(line, '^\s*import\>')
