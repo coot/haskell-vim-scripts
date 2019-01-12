@@ -46,6 +46,8 @@ if !exists('g:haskell_indent_in')
 endif
 
 if !exists('g:haskell_indent_where')
+  " TODO: it's just a boolean: if negative then it moves where that much to
+  " the left.
   " ```
   " where
   " >>>>f :: Int -> Int
@@ -94,9 +96,12 @@ fun! FindFirstNonClosedBracket(line)
   endif
 endfun
 
-fun! InGADTClause()
-  let stop_line = search('^\S', 'bnW')
-  return search('^\s*data\>.*\<where\>', 'bnW', stop_line) != 0
+fun! InGADTClause(stop_line)
+  return search('^\s*data\>.*\<where\>', 'bnW', a:stop_line) != 0
+endfun
+
+fun! InWhereClause(stop_line)
+  return search('^\s*where\>', 'bnW', a:stop_line) != 0
 endfun
 
 fun! GetLineIdent(line)
@@ -112,7 +117,9 @@ fun! GetHaskellIndent()
   let ppline	= getline(v:lnum - 2)
   let nline     = getline(v:lnum + 1)
 
-  let inGADT    = InGADTClause()
+  let stop_line = search('^\S', 'bnW')
+  let inGADT    = InGADTClause(stop_line)
+  let inWhere   = InWhereClause(stop_line)
 
   let s = match(line, '\<in\s')
   if s > 0 && !s:isCommentOrString(v:lnum, s)
@@ -411,7 +418,7 @@ fun! GetHaskellIndent()
     return s + &l:shiftwidth
   endif
 
-  let s = match(pline, '\<where\>\s*$')
+  let s = match(pline, '^.*\S.*\<where\>\s*$')
   let g = s:isCommentOrString(v:lnum - 1, s + 1)
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s + 1)
     let s = match(pline, '\C^\s*\zs\%(class\|instance\|data\)\>')
@@ -439,7 +446,16 @@ fun! GetHaskellIndent()
 	let l = getline(n)
       endwhile
     endif
-    return match(pline, '\S') + abs(g:haskell_indent_where)
+    return match(pline, '\S') + &l:shiftwidth
+  endif
+
+  let s = match(pline, '^\s*\zswhere\s*$')
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s + 1)
+    if g:haskell_indent_where < 0
+      return s + &l:shiftwidth / 2
+    else
+      return s + g:haskell_indent_where
+    endif
   endif
 
   let s = match(pline, '\C^\s*\zsinstance\>')
@@ -456,7 +472,6 @@ fun! GetHaskellIndent()
       endif
     endif
     return &l:shiftwidth / 2
-    " return indent(v:lnum - 1) + g:haskell_indent_where
   endif
 
   if line =~ '^\s*where\>'
@@ -531,11 +546,6 @@ fun! GetHaskellIndent()
     return indent(v:lnum - 1) + &l:shiftwidth
   endif
 
-  if line =~ '[^-]->\s*\%(do\)\?\s*$' && line !~ '::'
-    let s = search('\\\?\<case\>', 'bnW')
-    return indent(s) + &l:shiftwidth
-  endif
-
   let s = match(pline, '^\s*data\>.\{-}\zs=')
   if s >= 0 && nline =~ '^\s*|'
     return s
@@ -573,7 +583,8 @@ fun! GetHaskellIndent()
   "	  return x,
   " ```
   let lastPairCurly = searchpair('{', '', '}', 'bnW')
-  if pline !~ ',\s*$' && (lastPairCurly != 0 || line =~ '^[^{]*}\s*$')
+  let x = pline !~ ',\s*$' && (lastPairCurly != 0 || line =~ '^[^{]*}\s*$')
+  if x
     " previous line not ending with ','
     if getline(lastPairCurly) =~ '{\s*$'
       return indent(v:lnum - 1) - &l:sw
@@ -586,9 +597,12 @@ fun! GetHaskellIndent()
 	  return indent(lastPairCurly - 1)
 	else
 	  return indent(lastPairCurly)
+	endif
       endif
     endif
-  elseif lastPairCurly
+  endif
+
+  if lastPairCurly
     " other lines (maybe this block should be moved down, so other things
     " take a precedence over this one)
     let s = search('{\s*$', 'bW')
@@ -603,7 +617,8 @@ fun! GetHaskellIndent()
     if s >= 0
       if line =~ '^\s*\k'
 	" first line after a type signature
-	return indent(v:lnum - 1) - &l:shiftwidth
+	let s = search('^\s*\%(::\|->\)\@<!\s*\w', 'bnW')
+	return inWhere || inGADT ? indent(s) : indent(s) - &l:shiftwidth
       elseif pline =~ '\.\s*$'
 	" ```
 	" :: forall a .
