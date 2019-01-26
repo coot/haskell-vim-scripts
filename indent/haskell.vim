@@ -588,10 +588,14 @@ fun! GetHaskellIndent()
   "	  return x,
   " ```
   let lastPairCurly = searchpair('{', '', '}', 'bnW')
-  let x = pline !~ ',\s*$' && (lastPairCurly != 0 || line =~ '^[^{]*}\s*$')
-  if x
+  if pline !~ ',\s*$' && (lastPairCurly != 0 || line =~ '^[^{]*}\s*$')
+    let lastComma = search('\%(^\s*,\|,\s*$\)', 'bnW', lastPairCurly)
+    let lastDo = search('\<do\>', 'bnW', max([lastComma, lastPairCurly]))
+    " special treatment for do notation
+    if lastDo >= 0
+      return indent(v:lnum - 1)
     " previous line not ending with ','
-    if getline(lastPairCurly) =~ '{\s*$'
+    elseif getline(lastPairCurly) =~ '{\s*$'
       return indent(v:lnum - 1) - &l:sw
     else
       let s = match(pline, '[{,]')
