@@ -336,7 +336,8 @@ fun! GetHaskellIndent()
       return u
   endif
 
-  let s = match(pline, '::')
+  " match `::` but not when it comes after `->` or `=>`
+  let s = match(pline, '\([=-]>.*\)\@<!::')
   if s >= 0 && line =~ '^\s*[=-]>'
     " When opening a new line with `->`:
     " ```
