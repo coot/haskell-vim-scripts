@@ -56,6 +56,11 @@ if !exists('g:haskell_indent_where')
   let g:haskell_indent_where = 4
 endif
 
+if !exists('g:haskell_indent_where_min')
+  " Minimum indentation level for where
+  let g:haskell_indent_where_min = 4
+endif
+
 fun! FindFirstNonClosedBracket(line)
   " Find first non closed '(', '[' or '{' in a single line
   let stackBracket	  = []
@@ -433,26 +438,7 @@ fun! GetHaskellIndent()
     if pline =~ '^\s*module\>'
       return 0
     elseif s >= 0
-      return s + &l:sw
-    else
-      " module Main (...) where
-      " class Eq ... where
-      " instance Eq ... where
-      " data (GADTs)
-      let n = v:lnum - 1
-      let l = getline(n)
-      while n >= 0 &&  l !~ '^\s*$' && l !~ '\<where\>'
-	let s = match(l, '\C^module\>')
-	if s >= 0
-	  return s
-	endif
-	let s = match(l, '\C^\s*\zs\%(class\|instance\|data\)\>')
-	if s >= 0
-	  return s + &l:sw
-	endif
-	let n -= 1
-	let l = getline(n)
-      endwhile
+      return max([s + &l:sw, g:haskell_indent_where_min])
     endif
     return match(pline, '\S') + &l:sw
   endif
@@ -460,26 +446,24 @@ fun! GetHaskellIndent()
   let s = match(pline, '^\s*\zswhere\s*$')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s + 1)
     if g:haskell_indent_where < 0
-      return s + &l:sw / 2
+      return s + abs(g:haskell_indent_where) / 2
     else
       return s + g:haskell_indent_where
     endif
   endif
 
-  let s = match(pline, '\C^\s*\zsinstance\>')
+  let s = match(pline, '\C^\s*\zs\%(instance\|class\)\>')
   if s >= 0
-    return s + &l:sw
+    return max([s + &l:sw, g:haskell_indent_where_min])
   endif
 
   if line =~ '^\s*where\>\s*$' && g:haskell_indent_where < 0
+    let i = abs(g:haskell_indent_where)
     let s = search('^\S', 'bnW')
     if s > 0
       let l = getline(s)
-      if l =~ '^instance'
-	return &l:sw + &l:sw / 2
-      endif
+      return max([g:haskell_indent_where_min, i])
     endif
-    return &l:sw / 2
   endif
 
   if line =~ '^\s*where\>'
