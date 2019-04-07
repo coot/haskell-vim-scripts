@@ -215,6 +215,21 @@ fun! GetHaskellIndent()
     endif
   endif
 
+  " ```
+  " f :: a
+  "   -> b
+  " f -- indent the line after type signature
+  " ```
+  let u = match(line, '^\s*\zs\i\+')
+  if !inGADT && pline =~ '^\s*[-=]>' && line =~ '^\s*\i\+'
+    let l = search('^\s*\i*\s*::', 'bnW')
+    if getline(l) =~ '^\s*::'
+      return indent(l - 1)
+    else
+      return indent(l)
+    endif
+  endif
+
   let s = match(line, '^\s*=>')
   if s >= 0
     let l = search('::', 'bnW', line(".") - 10)
