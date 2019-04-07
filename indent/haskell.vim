@@ -373,7 +373,7 @@ fun! GetHaskellIndent()
     return s
   endif
 
-  let s = match(pline, '\\\@<!\<case\>')
+  let s = match(pline, '\\\@<!\<case\>\(.\{-}\<of\s*{\s*}[[:space:],]*$\)\@!')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     if pline =~ '^\s*let\>'
       " TODO: find let block
