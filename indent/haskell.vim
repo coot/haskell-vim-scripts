@@ -594,15 +594,16 @@ fun! GetHaskellIndent()
   "	x = \x -> do
   "	  return x,
   " ```
-  let lastPairCurly = searchpair('{', '', '}', 'bnW')
-  if pline !~ ',\s*$' && (lastPairCurly != 0 || line =~ '^[^{]*}\s*$')
-    let lastComma = search('\%(^\s*,\|,\s*$\)', 'bnW', lastPairCurly)
-    let lastDo = search('\<do\>', 'bnW', max([lastComma, lastPairCurly]))
+  let stopLine = search('^\S', 'bnW')
+  let lastPairCurly = searchpair('{', '', '}', 'bnW', 'getline(".") =~ "{[^{}]*}"', stopLine)
+  if pline !~ ',\s*$' && (lastPairCurly > 0 || line =~ '^[^{]*}\s*$')
+    let lastComma = lastPairCurly > 0 ? search('\%(^\s*,\|,\s*$\)', 'bnW', lastPairCurly) : 0
+    let lastDo = lastComma > 0 || lastPairCurly > 0 ? search('\<do\>', 'bnW', max([lastComma, lastPairCurly])) : 0
     " special treatment for do notation
-    if lastDo >= 0
+    if lastDo > 0
       return indent(v:lnum - 1)
     " previous line not ending with ','
-    elseif getline(lastPairCurly) =~ '{\s*$'
+    elseif lastPairCurly > 0 && getline(lastPairCurly) =~ '{\s*$'
       return indent(v:lnum - 1) - &l:sw
     else
       let s = match(pline, '[{,]')
