@@ -105,7 +105,7 @@ fun! InWhereClause(stop_line)
 endfun
 
 fun! GetLineIdent(line)
-  return match(line, '^\s*\zs\k\+')
+  return match(line, '^\s*\zs\i\+')
 endfun
 
 fun! GetHaskellIndent()
@@ -157,7 +157,7 @@ fun! GetHaskellIndent()
     return s
   endif
 
-  let s = match(pline, '\v%(^\s*\k*\s*::\s*)@<=\([^)]*$')
+  let s = match(pline, '\v%(^\s*\i*\s*::\s*)@<=\([^)]*$')
   if s >= 0
     " ```
     " f :: ( Eq a
@@ -186,7 +186,7 @@ fun! GetHaskellIndent()
     " ```
     let n = v:lnum - 1
     let l = getline(n)
-    while n >= 0 && l !~ '^\s*\k*\s*::' && l !~ '^\s*$'
+    while n >= 0 && l !~ '^\s*\i*\s*::' && l !~ '^\s*$'
       let n -= 1
       let l = getline(n)
     endwhile
@@ -196,7 +196,7 @@ fun! GetHaskellIndent()
     endif
   endif
 
-  let u = match(pline,  '\v%(^\s*\k*\s*)@<=::')
+  let u = match(pline,  '\v%(^\s*\i*\s*)@<=::')
   let r = strpart(pline, u)
   let t = r  =~ '[-=]>$'
   if !inGADT && (u >= 0) && (r !~ '[-=]>' || t) && line !~ '=' && line !~ '}' && searchpair('{', '', '}', 'bnW') == 0
@@ -205,7 +205,7 @@ fun! GetHaskellIndent()
       " f :: String ->
       "	     String
       " ```
-      return match(pline,  '\v^\s*\k+\s*::\s*\zs')
+      return match(pline,  '\v^\s*\i+\s*::\s*\zs')
     else
       " ```
       " f :: String
@@ -321,12 +321,12 @@ fun! GetHaskellIndent()
   endif
 
   " Indent record fields
-  if line =~ '^\s*{' && pline =~ '[^=]=\s*\k'
+  if line =~ '^\s*{' && pline =~ '[^=]=\s*\i'
     "  previous line ` = TypeConstructor ...
     return indent(v:lnum - 1) + &l:sw
   endif
 
-  let u = match(ppline, '\v%(^\s*\k*\s*)@<=::')
+  let u = match(ppline, '\v%(^\s*\i*\s*)@<=::')
   if u >= 0 && line =~ '^\s*[=-]>' && indent(v:lnum - 2) < indent(v:lnum - 1)
       " ```
       " f :: forall a b .
