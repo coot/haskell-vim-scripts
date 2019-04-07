@@ -628,13 +628,15 @@ fun! GetHaskellIndent()
 
   " Must be after the record puns rule (the above one), otherwise closing
   " bracket of newtype records will not be indented correctly.
-  let s = match(pline, '^\s*\%(\f\+\)\?\s*\zs\%(::\|=>\|->\)')
+  let s = match(pline, '^\s*\%(\f\+\)\?\s*\zs\%(::\|[=-]>\)')
   let r = match(pline, '^\s*\zs\.')
   if s >= 0 || (r >= 0 && ppline =~ '::')
     if s >= 0
-      if line =~ '^\s*\k'
+      if v:false && line =~ '^\s*\l'
 	" first line after a type signature
-	let s = search('^\s*\%(::\|->\)\@<!\s*\w', 'bnW')
+	" NOTE: this might be confused with a case expression (thus we test
+	" against `'^\s*\l'` above, but it's not prefect...)
+	let s = search('^\s*\%(::\|[=-]>\)\@<!\s*\w', 'bnW')
 	return inWhere || inGADT ? indent(s) : indent(s) - &l:sw
       elseif pline =~ '\.\s*$'
 	" ```
