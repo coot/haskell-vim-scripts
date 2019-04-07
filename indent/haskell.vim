@@ -254,6 +254,20 @@ fun! GetHaskellIndent()
     return 0
   endif
 
+  let s = searchpairpos('\%(--.\{-}\)\@<!\<if\>', '\<then\>', '\<else\>.*\zs$', 'bnrcW')[0]
+  if s > 0
+    " this rule ensures that using `=` in visual mode will correctly indent
+    " `if then else`, but it does not handle lines after `then` and `else`
+    if line =~ '\<\%(then\|else\)\>'
+      return indent(s) + &l:sw
+    endif
+  endif
+
+  let p = match(pline, '\<if\>\%(.\{-}\<then\>.\{-}\<else\>\)\@!')
+  if p > 0
+    return p + &l:sw
+  endif
+
   " ```
   " ( abc
   " , def
@@ -391,20 +405,6 @@ fun! GetHaskellIndent()
   let s = match(pline, '\<let\>\s\+.\+\(\<in\>\)\?\s*$')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     return match(pline, '\<let\>') + g:haskell_indent_let
-  endif
-
-  let s = searchpairpos('\%(--.\{-}\)\@<!\<if\>', '\<then\>', '\<else\>.*\zs$', 'bnrcW')[0]
-  if s > 0
-    " this rule ensures that using `=` in visual mode will correctly indent
-    " `if then else`, but it does not handle lines after `then` and `else`
-    if line =~ '\<\%(then\|else\)\>'
-      return indent(s) + &l:sw
-    endif
-  endif
-
-  let p = match(pline, '\<if\>\%(.\{-}\<then\>.\{-}\<else\>\)\@!')
-  if p > 0
-    return p + &l:sw
   endif
 
   let s = match(pline, '[)\][:alpha:][:space:]]\zs=\s*$')
