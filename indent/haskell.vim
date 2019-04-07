@@ -240,14 +240,6 @@ fun! GetHaskellIndent()
     endif
   endif
 
-  " if line =~ '^\s*' && pline =~ '^\s*$' && ppline =~ '^\s*$'
-    " let n = v:lnum - 2
-    " while n >= 0 && getline(n) =~ '^\s*$'
-      " let n -= 1
-    " endwhile
-    " return indent(n) - &l:sw
-  " endif
-
   if line =~ '^\s*deriving\>'
     let n = v:lnum - 1
     let l = pline
