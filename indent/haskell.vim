@@ -238,9 +238,14 @@ fun! GetHaskellIndent()
 
   let s = match(line, '^\s*=>')
   if s >= 0
-    let l = search('::', 'bnW', line(".") - 10)
+    let l = search('\(::\|\<instance\>\)', 'bnW', line(".") - 10)
     if l >= 0
-      return match(getline(l), '::')
+      let line = getline(l)
+      if line =~ '\<instance\>'
+	return max([&l:sw, g:haskell_indent_min])
+      else
+	return match(getline(l), '::')
+      endif
     else
       return indent(lnum - 1)
     endif
@@ -424,7 +429,7 @@ fun! GetHaskellIndent()
 
   let s = match(pline, '^\s*\zsclass\>')
   if s >= 0
-    return s + &l:sw
+    return s + max([&l:sw, g:haskell_indent_min])
   endif
 
   let s = match(pline, '^\s*\zsmodule.\{-}\%(\<where\s*\)\@<!$')
