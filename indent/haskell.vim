@@ -513,7 +513,7 @@ fun! GetHaskellIndent()
     endif
   endif
 
-  let s = match(pline, '\%(->[[:space:]$]*\)\@<!\<do\>\s\+\zs\S\+.*$')
+  let s = match(pline, '\<do\>\s\+\zs\S\+.*$')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     return s
   endif
