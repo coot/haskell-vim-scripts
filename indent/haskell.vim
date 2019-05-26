@@ -56,9 +56,10 @@ if !exists('g:haskell_indent_where')
   let g:haskell_indent_where = 4
 endif
 
-if !exists('g:haskell_indent_where_min')
+if !exists('g:haskell_indent_min')
   " Minimum indentation level for where
-  let g:haskell_indent_where_min = 4
+  " this also applies to instances and classes
+  let g:haskell_indent_min = 4
 endif
 
 fun! FindFirstNonClosedBracket(line)
@@ -438,7 +439,7 @@ fun! GetHaskellIndent()
     if pline =~ '^\s*module\>'
       return 0
     elseif s >= 0
-      return max([s + &l:sw, g:haskell_indent_where_min])
+      return max([s + &l:sw, g:haskell_indent_min])
     endif
     return match(pline, '\S') + &l:sw
   endif
@@ -454,7 +455,7 @@ fun! GetHaskellIndent()
 
   let s = match(pline, '\C^\s*\zs\%(instance\|class\)\>')
   if s >= 0
-    return max([s + &l:sw, g:haskell_indent_where_min])
+    return max([s + &l:sw, g:haskell_indent_min])
   endif
 
   if line =~ '^\s*where\>\s*$' && g:haskell_indent_where < 0
@@ -462,7 +463,7 @@ fun! GetHaskellIndent()
     let s = search('^\S', 'bnW')
     if s > 0
       let l = getline(s)
-      return max([g:haskell_indent_where_min, i])
+      return max([g:haskell_indent_min, i])
     endif
   endif
 
