@@ -444,7 +444,12 @@ fun! GetHaskellIndent()
     if pline =~ '^\s*module\>'
       return 0
     elseif s >= 0
-      return max([s + &l:sw, g:haskell_indent_min])
+      let s = match(pline, '^\s*data\s\+\zs')
+      if s >= 0
+	return s
+      else
+	return max([s + &l:sw, g:haskell_indent_min])
+      endif
     endif
     return match(pline, '\S') + &l:sw
   endif
