@@ -424,7 +424,7 @@ fun! GetHaskellIndent()
     " fold f as b =
     " >>>>
     " ```
-    return match(pline, '\S') + &l:sw
+    return max([match(pline, '\S') + &l:sw, g:haskell_indent_min])
   endif
 
   let s = match(pline, '^\s*\zsclass\>')
@@ -469,11 +469,18 @@ fun! GetHaskellIndent()
   endif
 
   if line =~ '^\s*where\>\s*$' && g:haskell_indent_where < 0
-    let i = abs(g:haskell_indent_where)
-    let s = search('^\S', 'bnW')
-    if s > 0
-      let l = getline(s)
-      return max([g:haskell_indent_min, i])
+    let i = abs(g:haskell_indent_where) / 2
+    let s = match(pline, '\S')
+    let pos = getpos(".")
+    " we need to start search from the start of the line, otherwise we find
+    " the current where, not the previous one
+    normal |0
+    let x = search('^\S', 'Wnb', search('\<where\>', 'Wnb'))
+    call setpos(".", pos)
+    if x > 0
+      return max([i, s - i])
+    else
+      return s + i
     endif
   endif
 
