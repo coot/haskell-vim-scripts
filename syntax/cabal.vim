@@ -23,7 +23,7 @@
 "       Cabal known compiler are highlighted too.
 "
 " V1.2: Added cpp-options which was missing. Feature implemented
-"       by GHC, found with a GHC warning, but undocumented. 
+"       by GHC, found with a GHC warning, but undocumented.
 "       Whatever...
 "
 " v1.1: Fixed operator problems and added ftdetect file
@@ -62,6 +62,7 @@ syn keyword cabalCategory contained
 	\ source-repository
 	\ flag
 	\ custom-setup
+	\ common
 syn match cabalCategoryTitle contained /[^{]*\ze{\?/
 syn match cabalCategoryRegion
 	\ contains=cabalCategory,cabalCategoryTitle
@@ -110,6 +111,7 @@ syn keyword cabalStatement contained containedin=cabalStatementRegion
 	\ homepage
 	\ hs-source-dirs
 	\ hugs-options
+	\ import
 	\ include-dirs
 	\ includes
 	\ install-includes
@@ -149,7 +151,7 @@ syn match cabalVersionRegionA
 	\ contains=cabalVersionOperator,cabalVersion
 	\ keepend
 	\ /\%(==\|\^\?>=\|<=\|<\|>\)\s*\d\+\%(\.\d\+\)*\%(\.\*\)\?\>/
-" version inside `version: ...` 
+" version inside `version: ...`
 syn match cabalVersionRegionB
 	\ contains=cabalStatementRegion,cabalVersionOperator,cabalVersion
 	\ /^\s*\%(cabal-\)\?version\s*:.*$/
