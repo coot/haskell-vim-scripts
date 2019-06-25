@@ -67,7 +67,7 @@ syn match cabalCategoryTitle contained /[^{]*\ze{\?/
 syn match cabalCategoryRegion
 	\ contains=cabalCategory,cabalCategoryTitle
 	\ nextgroup=cabalCategory skipwhite
-	\ /^\c\s*\(contained\|executable\|library\|benchmark\|test-suite\|source-repository\|flag\|custom-setup\)\+\s*\%(.*$\|$\)/
+	\ /^\c\s*\(contained\|common\|executable\|library\|benchmark\|test-suite\|source-repository\|flag\|custom-setup\)\+\s*\%(.*$\|$\)/
 syn keyword cabalTruth true false
 
 " cabalStatementRegion which limits the scope of cabalStatement keywords, this
