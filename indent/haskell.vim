@@ -114,7 +114,7 @@ fun! InWhereClause(stop_line)
 endfun
 
 fun! GetLineIdent(line)
-  return match(line, '^\s*\zs\i\+')
+  return match(a:line, '^\s*\zs\i+')
 endfun
 
 fun! GetHaskellIndent()
@@ -696,7 +696,7 @@ fun! GetHaskellIndent()
   call cursor(v:lnum, 0)
   let ident = GetLineIdent(v:lnum)
   let s = searchpair('(', '', ')', 'bnW')
-  if s == 0
+  if s == 0 && line !~ '^\s*$'
     while n > 0 && l !~ '^\s*$'
       let s = match(l, '^\s*\zsimport\>')
       if s >= 0
