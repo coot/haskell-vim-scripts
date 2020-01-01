@@ -6,6 +6,18 @@ setl indentexpr=GetHaskellIndent()
 let &indentkeys="!^F,o,O,},=where,=in\ ,=deriving,=::,==\ ,=->,==>,=|,={"
 
 " TODO:
+"
+" Indent type signature
+" ```
+" fun
+"   ::
+" ```
+" it should use `g:haskell_indent_min`
+" The same for:
+" ```
+" Pattern StrictJust a <- Just !a where
+"   StrictJust !a = Just a
+" ```
 
 fun! s:getSynStack(lnum, col)
   return map(synstack(a:lnum, a:col), { key, val -> synIDattr(val, "name") })
@@ -19,15 +31,6 @@ fun! s:isCommentOrString(lnum, col)
     return v:false
   endif
 endfun
-
-if !exists('g:haskell_indent_case')
-  " ```
-  " case xs of
-  " >>>>[]     -> ...
-  " >>>>(y:ys) -> ...
-  " ```
-  let g:haskell_indent_case = &l:sw
-endif
 
 if !exists('g:haskell_indent_let')
   " ```
@@ -123,6 +126,14 @@ fun! GetHaskellIndent()
   let ppline	= getline(v:lnum - 2)
   let nline     = getline(v:lnum + 1)
 
+  " previous non-empty line
+  let nelnum    = v:lnum - 1
+  while getline(nelnum) =~ '^\s*$'
+    let nelnum -= 1
+  endwhile
+  let neline    = getline(nelnum)
+
+
   let stop_line = search('^\S', 'bnW')
   let inGADT    = InGADTClause(stop_line)
   let inWhere   = InWhereClause(stop_line)
@@ -211,7 +222,7 @@ fun! GetHaskellIndent()
       " f :: String ->
       "	     String
       " ```
-      return match(pline,  '\v^\s*\i+\s*::\s*\zs')
+      return match(pline, '\v^\s*\i+\s*::\s*\zs')
     else
       " ```
       " f :: String
@@ -383,14 +394,14 @@ fun! GetHaskellIndent()
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     if pline =~ '^\s*let\>'
       " TODO: find let block
-      return indent(v:lnum - 1) + 2 * &l:sw
+      return max([indent(v:lnum - 1) + 2 * &l:sw, g:haskell_indent_min])
     else
-      return indent(v:lnum - 1) + &l:sw
+      return max([indent(v:lnum - 1) + &l:sw, g:haskell_indent_min])
     endif
   endif
 
   if pline =~ '\\case\>'
-    return indent(v:lnum - 1) + &l:sw
+    return max([indent(v:lnum - 1) + &l:sw, g:haskell_indent_min])
   endif
 
   let s = match(pline, '\<let\>\s\+\zs\S')
@@ -444,12 +455,8 @@ fun! GetHaskellIndent()
     if pline =~ '^\s*module\>'
       return 0
     elseif s >= 0
-      let s = match(pline, '^\s*data\s\+\zs')
-      if s >= 0
-	return s
-      else
-	return max([s + &l:sw, g:haskell_indent_min])
-      endif
+      let s = match(pline, '^\s*\zsdata\>')
+      return max([s + &l:sw, g:haskell_indent_min])
     endif
     return match(pline, '\S') + &l:sw
   endif
@@ -521,7 +528,7 @@ fun! GetHaskellIndent()
     if pline =~ '^\s*,'
       return match(pline, '\S') + max([&l:sw, 4])
     else
-      return match(pline, '\S') + &l:sw
+      return max([match(pline, '\S') + &l:sw, g:haskell_indent_min])
     endif
   endif
 
@@ -530,7 +537,7 @@ fun! GetHaskellIndent()
     return s
   endif
 
-  let s = match(pline, '\_s\zs|\_s')
+  let s = match(neline, '\_s\zs|\_s')
   if s > 0
     if line =~ '^\s*\%($\||\)'
       " empty line or line that starts with `|`
@@ -539,13 +546,17 @@ fun! GetHaskellIndent()
       " find first line with `|`
     endif
     let l = v:lnum - 1
-    while l >= 0 && getline(l - 1) =~ '\_s|\_s'
+    while l >= 0 && getline(l - 1) =~ '\_s|\_s' 
       let l -= 1
     endwhile
-    return indent(l)
+    return match(getline(l), '\s\zs|\_s')
   endif
 
   if line =~ '^\s*|'
+    let s = match(neline, '->')
+    if s >= 0
+      return s
+    endif
     " line which starts with `|`, but previous line has no `|` (matched by
     " previous group).
     let s = match(pline, '=')
@@ -572,7 +583,7 @@ fun! GetHaskellIndent()
 
   let s = match(pline, '^\s*\zs\%(newtype\|data\)\>[^=]*$')
   if s >= 0
-    return s + &l:sw
+    return max([s + &l:sw, g:haskell_indent_min])
   endif
 
   let s = match(pline, '^\s*[}\]]')
@@ -604,6 +615,9 @@ fun! GetHaskellIndent()
     " special treatment for do notation
     if lastDo > 0
       return indent(v:lnum - 1)
+    " previous line staring with ','
+    elseif pline =~ '^\s*,'
+      return match(pline, ',')
     " previous line not ending with ','
     elseif lastPairCurly > 0 && getline(lastPairCurly) =~ '{\s*$'
       return indent(v:lnum - 1) - &l:sw
