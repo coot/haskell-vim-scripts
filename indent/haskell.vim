@@ -128,7 +128,7 @@ fun! GetHaskellIndent()
 
   " previous non-empty line
   let nelnum    = v:lnum - 1
-  while getline(nelnum) =~ '^\s*$'
+  while getline(nelnum) =~ '^\s*$' && nelnum > 1
     let nelnum -= 1
   endwhile
   let neline    = getline(nelnum)
