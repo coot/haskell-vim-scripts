@@ -129,6 +129,10 @@ fun! GetHaskellIndent()
   " previous non-empty line
   let nelnum    = v:lnum - 1
   while getline(nelnum) =~ '^\s*$' && nelnum > 1
+    if getline(nelnum - 1) =~ '^\s*$'
+      let nelnum = v:lnum - 1
+      break
+    endif
     let nelnum -= 1
   endwhile
   let neline    = getline(nelnum)
@@ -240,10 +244,13 @@ fun! GetHaskellIndent()
   let u = match(line, '^\s*\zs\i\+')
   if !inGADT && pline =~ '^\s*[-=]>' && line =~ '^\s*\i\+'
     let l = search('^\s*\i*\s*::', 'bnW')
-    if getline(l) =~ '^\s*::'
-      return indent(l - 1)
-    else
-      return indent(l)
+    " we are not in a case expression
+    if search('\<case\>', 'bnW', l) <= 0
+      if getline(l) =~ '^\s*::'
+        return indent(l - 1)
+      else
+        return indent(l)
+      endif
     endif
   endif
 
