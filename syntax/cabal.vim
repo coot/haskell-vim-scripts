@@ -76,6 +76,7 @@ syn keyword cabalStatement contained containedin=cabalStatementRegion
 	\ default-language
 	\ default-extensions
 	\ author
+        \ autogen-modules
 	\ branch
 	\ bug-reports
 	\ build-depends
