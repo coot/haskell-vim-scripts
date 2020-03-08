@@ -284,7 +284,7 @@ fun! GetHaskellIndent()
   endif
 
   let s = searchpairpos('\%(--.\{-}\)\@<!\<if\>', '\<then\>', '\<else\>.*\zs$', 'bnrcW')[0]
-  if s > 0
+  if s > 0 && mode() =~ '\v\c(v|V|CTRL-V|s|S|CTRL-S)'
     " this rule ensures that using `=` in visual mode will correctly indent
     " `if then else`, but it does not handle lines after `then` and `else`
     if line =~ '\<\%(then\|else\)\>'
