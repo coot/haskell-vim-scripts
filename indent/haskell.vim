@@ -114,7 +114,7 @@ fun! InWhereClause(stop_line)
 endfun
 
 fun! GetLineIdent(line)
-  return match(a:line, '^\s*\zs\i+')
+  return match(a:line, '^\s*\zs\S')
 endfun
 
 fun! GetHaskellIndent()
@@ -294,7 +294,13 @@ fun! GetHaskellIndent()
 
   let p = match(pline, '\<if\>\%(.\{-}\<then\>.\{-}\<else\>\)\@!')
   if p > 0
-    return p + &l:sw
+    " Handle multi-way if
+    let s = match(pline, 'if\s\+\zs|')
+    if s >= 0
+      return s
+    else
+      return p + &l:sw
+    endif
   endif
 
   " ```
@@ -443,6 +449,11 @@ fun! GetHaskellIndent()
     " >>>>
     " ```
     return max([match(pline, '\S') + &l:sw, g:haskell_indent_min])
+  endif
+
+  let s = match(pline, '[)\][:alpha:][:space:]]\zs=\s*\S$')
+  if s >= 0 && !s:isCommentOrString(v:lnum - 1, s + 1)
+    return s
   endif
 
   let s = match(pline, '^\s*\zsclass\>')
@@ -701,14 +712,14 @@ fun! GetHaskellIndent()
   let n = v:lnum - 1
   let l = pline
   call cursor(v:lnum, 0)
-  let ident = GetLineIdent(v:lnum)
+  let ident = GetLineIdent(getline(v:lnum))
   let s = searchpair('(', '', ')', 'bnW')
   if s == 0 && line !~ '^\s*$'
     while n > 0 && l !~ '^\s*$'
       let s = match(l, '^\s*\zsimport\>')
       if s >= 0
 	return s
-      elseif GetLineIdent(l) == ident
+      elseif GetLineIdent(getline(l)) == ident
 	"   someFunction a b =
 	"      do ...
 	"   somFunction
