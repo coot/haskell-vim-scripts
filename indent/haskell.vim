@@ -585,7 +585,7 @@ fun! GetHaskellIndent()
     endif
   endif
 
-  if pline =~ '[^-]->\s*$'
+  if pline =~ '[^-]->\s*$' && line !~ '[^-]->\s*$'
     return indent(v:lnum - 1) + &l:sw
   endif
 
