@@ -65,7 +65,7 @@ if !exists('g:haskell_indent_min')
   let g:haskell_indent_min = 4
 endif
 
-fun! FindFirstNonClosedBracket(line)
+fun! FindLastNonClosedBracket(line)
   " Find first non closed '(', '[' or '{' in a single line
   let stackBracket	  = []
   let stackCurlyBracket	  = []
@@ -99,7 +99,7 @@ fun! FindFirstNonClosedBracket(line)
     call add(results, stackSquareBracket[0])
   endif
   if len(results)
-    return min(results)
+    return max(results)
   else
     return -1
   endif
@@ -319,7 +319,7 @@ fun! GetHaskellIndent()
   " ( Text (..)
   " ,
   " ```
-  let s = FindFirstNonClosedBracket(pline)
+  let s = FindLastNonClosedBracket(pline)
   " This pattern skips over `(..)`, `[..]` and `{..}` and matches first non
   " closed `(`, `{` or `[`.
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
@@ -338,6 +338,13 @@ fun! GetHaskellIndent()
 	" Data {
 	" --x
 	return indent(v:lnum -1) + 2 * &l:sw
+      elseif pline =~ ',\s*$'
+        " Data { abc,
+        " -------x
+        " or 
+        "        abc,
+        " -------x
+        return max([match(pline, '{\s*\zs'), match(pline, '^\s*\zs')])
       else
 	" Data {
 	" -----x
@@ -629,7 +636,7 @@ fun! GetHaskellIndent()
   let lastPairCurly = searchpair('{', '', '}', 'bnW', 'getline(".") =~ "{[^{}]*}"', stopLine)
   if pline !~ ',\s*$' && (lastPairCurly > 0 || line =~ '^[^{]*}\s*$')
     let lastComma = lastPairCurly > 0 ? search('\%(^\s*,\|,\s*$\)', 'bnW', lastPairCurly) : 0
-    let lastDo = lastComma > 0 || lastPairCurly > 0 ? search('\<do\>', 'bnW', max([lastComma, lastPairCurly])) : 0
+    let lastDo = lastPairCurly > 0 ? search('\<do\>', 'bnW', max([lastComma, lastPairCurly])) : 0
     " special treatment for do notation
     if lastDo > 0
       return indent(v:lnum - 1)
@@ -639,6 +646,8 @@ fun! GetHaskellIndent()
     " previous line not ending with ','
     elseif lastPairCurly > 0 && getline(lastPairCurly) =~ '{\s*$'
       return indent(v:lnum - 1) - &l:sw
+    elseif lastPairCurly > 0
+      return indent(v:lnum - 1)
     else
       let s = match(pline, '[{,]')
       if s >= 0
@@ -656,8 +665,31 @@ fun! GetHaskellIndent()
   if lastPairCurly
     " other lines (maybe this block should be moved down, so other things
     " take a precedence over this one)
-    let s = search('{\s*$', 'bW')
-    return indent((s > 0 ? s + 1 : v:lnum - 1))
+    let s = getline(v:lnum) =~ '{' ? v:lnum : search('{', 'ncbW')
+    if s > 0
+      let l = getline(s)
+      if l =~ '{\s*$'
+        if s == v:lnum - 1
+          return indent(v:lnum - 1) + &l:sw
+        else
+          let el = search('=', 'nbW', s + 1)
+          if el > 0
+            return indent(el)
+          else
+            let el = search('::', 'nbW', s + 1)
+            if el > 0
+              return indent(el)
+            else
+              return indent(v:lnum - 1)
+            endif
+          endif
+        endif
+      elseif l = ',\s*'
+        return match(l, '{\s*\zs\S')
+      endif
+    else
+      return indent(v:lnum - 1)
+    endif
   endif
 
   " Must be after the record puns rule (the above one), otherwise closing
