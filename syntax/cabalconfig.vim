@@ -1,5 +1,5 @@
 " Vim syntax file
-" Language:		Cabal Project
+" Language:		Cabal Config
 " Maintainer:		profunctor@pm.me
 " Last Change:		Marcin Szamotulski
 " Original Author:	Marcin Szamotulski
