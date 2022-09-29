@@ -84,7 +84,7 @@ syn keyword cabalStatement contained containedin=cabalStatementRegion
 	\ bug-reports
 	\ build-depends
 	\ build-tools
-        \ build-tools-depends
+        \ build-tool-depends
 	\ build-type
 	\ buildable
 	\ c-sources
