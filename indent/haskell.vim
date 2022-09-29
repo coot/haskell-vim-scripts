@@ -12,7 +12,7 @@ let &indentkeys="!^F,o,O,},=where,=in\ ,=deriving,=::,==\ ,=->,==>,=|,={"
 " fun
 "   ::
 " ```
-" it should use `g:haskell_indent_min`
+" it should use `b:haskell_indent_min`
 " The same for:
 " ```
 " Pattern StrictJust a <- Just !a where
@@ -32,37 +32,37 @@ fun! s:isCommentOrString(lnum, col)
   endif
 endfun
 
-if !exists('g:haskell_indent_let')
+if !exists('b:haskell_indent_let')
   " ```
   " let x = 0
   " >>>>x
   " ```
-  let g:haskell_indent_let = &l:sw
+  let b:haskell_indent_let = &l:sw
 endif
 
-if !exists('g:haskell_indent_in')
+if !exists('b:haskell_indent_in')
   " ```
   " let x = 0
   " in
   " ```
-  let g:haskell_indent_in = 0
+  let b:haskell_indent_in = 0
 endif
 
-if !exists('g:haskell_indent_where')
-  " TODO: it's just a boolean: if negative then it moves where that much to
+if !exists('b:haskell_indent_where')
+  " TODO: it's just a boolean: if negative then it moves that much to
   " the left.
   " ```
   " where
   " >>>>f :: Int -> Int
   " >>>>f x = x
   " ```
-  let g:haskell_indent_where = 4
+  let b:haskell_indent_where = 4
 endif
 
-if !exists('g:haskell_indent_min')
+if !exists('b:haskell_indent_min')
   " Minimum indentation level for where
   " this also applies to instances and classes
-  let g:haskell_indent_min = 4
+  let b:haskell_indent_min = 4
 endif
 
 fun! FindLastNonClosedBracket(line)
@@ -260,7 +260,7 @@ fun! GetHaskellIndent()
     if l >= 0
       let line = getline(l)
       if line =~ '\<instance\>'
-	return max([&l:sw, g:haskell_indent_min])
+	return max([&l:sw, b:haskell_indent_min])
       else
 	return match(getline(l), '::')
       endif
@@ -414,14 +414,14 @@ fun! GetHaskellIndent()
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
     if pline =~ '^\s*let\>'
       " TODO: find let block
-      return max([indent(v:lnum - 1) + 2 * &l:sw, g:haskell_indent_min])
+      return max([indent(v:lnum - 1) + 2 * &l:sw, b:haskell_indent_min])
     else
-      return max([indent(v:lnum - 1) + &l:sw, g:haskell_indent_min])
+      return max([indent(v:lnum - 1) + &l:sw, b:haskell_indent_min])
     endif
   endif
 
   if pline =~ '\\case\>'
-    return max([indent(v:lnum - 1) + &l:sw, g:haskell_indent_min])
+    return max([indent(v:lnum - 1) + &l:sw, b:haskell_indent_min])
   endif
 
   let s = match(pline, '\<let\>\s\+\zs\S')
@@ -441,12 +441,12 @@ fun! GetHaskellIndent()
 
   let s = match(pline, '\<let\>\s*$')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
-    return s + g:haskell_indent_let
+    return s + b:haskell_indent_let
   endif
 
   let s = match(pline, '\<let\>\s\+.\+\(\<in\>\)\?\s*$')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s)
-    return match(pline, '\<let\>') + g:haskell_indent_let
+    return match(pline, '\<let\>') + b:haskell_indent_let
   endif
 
   let s = match(pline, '[)\][:alpha:][:space:]]\zs=\s*$')
@@ -455,7 +455,7 @@ fun! GetHaskellIndent()
     " fold f as b =
     " >>>>
     " ```
-    return max([match(pline, '\S') + &l:sw, g:haskell_indent_min])
+    return max([match(pline, '\S') + &l:sw, b:haskell_indent_min])
   endif
 
   let s = match(pline, '[)\][:alpha:][:space:]]\zs=\s*\S$')
@@ -465,7 +465,7 @@ fun! GetHaskellIndent()
 
   let s = match(pline, '^\s*\zsclass\>')
   if s >= 0
-    return s + max([&l:sw, g:haskell_indent_min])
+    return s + max([&l:sw, b:haskell_indent_min])
   endif
 
   let s = match(pline, '^\s*\zsmodule.\{-}\%(\<where\s*\)\@<!$')
@@ -481,27 +481,27 @@ fun! GetHaskellIndent()
       return 0
     elseif s >= 0
       let s = match(pline, '^\s*\zsdata\>')
-      return max([s + &l:sw, g:haskell_indent_min])
+      return max([s + &l:sw, b:haskell_indent_min])
     endif
     return match(pline, '\S') + &l:sw
   endif
 
   let s = match(pline, '^\s*\zswhere\s*$')
   if s >= 0 && !s:isCommentOrString(v:lnum - 1, s + 1)
-    if g:haskell_indent_where < 0
-      return s + abs(g:haskell_indent_where) / 2
+    if b:haskell_indent_where < 0
+      return s + abs(b:haskell_indent_where) / 2
     else
-      return s + g:haskell_indent_where
+      return s + b:haskell_indent_where
     endif
   endif
 
   let s = match(pline, '\C^\s*\zs\%(instance\|class\)\>')
   if s >= 0
-    return max([s + &l:sw, g:haskell_indent_min])
+    return max([s + &l:sw, b:haskell_indent_min])
   endif
 
-  if line =~ '^\s*where\>\s*$' && g:haskell_indent_where < 0
-    let i = abs(g:haskell_indent_where) / 2
+  if line =~ '^\s*where\>\s*$' && b:haskell_indent_where < 0
+    let i = abs(b:haskell_indent_where) / 2
     let s = match(pline, '\S')
     let pos = getpos(".")
     " we need to start search from the start of the line, otherwise we find
@@ -553,7 +553,7 @@ fun! GetHaskellIndent()
     if pline =~ '^\s*,'
       return match(pline, '\S') + max([&l:sw, 4])
     else
-      return max([match(pline, '\S') + &l:sw, g:haskell_indent_min])
+      return max([match(pline, '\S') + &l:sw, b:haskell_indent_min])
     endif
   endif
 
@@ -608,7 +608,7 @@ fun! GetHaskellIndent()
 
   let s = match(pline, '^\s*\zs\%(newtype\|data\)\>[^=]*$')
   if s >= 0
-    return max([s + &l:sw, g:haskell_indent_min])
+    return max([s + &l:sw, b:haskell_indent_min])
   endif
 
   let s = match(pline, '^\s*[}\]]')
