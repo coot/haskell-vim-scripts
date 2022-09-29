@@ -153,6 +153,7 @@ syn keyword cabalStatement contained containedin=cabalStatementRegion
 	\ stability
 	\ subdir
 	\ synopsis
+        \ reexported-modules
 	\ tag
 	\ tested-with
 	\ type
