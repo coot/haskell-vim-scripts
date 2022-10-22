@@ -78,6 +78,7 @@ syn keyword cabalStatement contained containedin=cabalStatementRegion
 	\ default-language
 	\ default-extensions
 	\ author
+        \ autogen-includes
         \ autogen-modules
         \ asm-sources
         \ asm-options
@@ -96,6 +97,7 @@ syn keyword cabalStatement contained containedin=cabalStatementRegion
         \ cmm-sources
         \ cmm-options
 	\ cpp-options
+        \ cxx-options
         \ cxx-sources
 	\ data-dir
 	\ data-files
@@ -112,7 +114,9 @@ syn keyword cabalStatement contained containedin=cabalStatementRegion
         \ extra-framework-dirs
         \ extra-ghci-libraries
 	\ extra-lib-dirs
+	\ extra-lib-dirs-static
 	\ extra-libraries
+	\ extra-libraries-static
 	\ extra-library-flavours
 	\ extra-source-files
 	\ extra-tmp-files
@@ -134,6 +138,8 @@ syn keyword cabalStatement contained containedin=cabalStatementRegion
 	\ install-includes
         \ js-sources
 	\ ld-options
+        \ lib-version-info
+        \ lib-version-linux
 	\ license
 	\ license-file
 	\ location
@@ -142,21 +148,26 @@ syn keyword cabalStatement contained containedin=cabalStatementRegion
 	\ manual
         \ mixins
 	\ module
+        \ mod-def-file
 	\ name
 	\ nhc98-options
+        \ options
 	\ other-extensions
         \ other-language
         \ other-languages
 	\ other-modules
 	\ package-url
 	\ pkgconfig-depends
+        \ scope
 	\ setup-depends
+        \ signatures
 	\ stability
 	\ subdir
 	\ synopsis
         \ reexported-modules
 	\ tag
 	\ tested-with
+        \ test-module
 	\ type
 	\ version
 	\ virtual-modules
