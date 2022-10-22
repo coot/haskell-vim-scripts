@@ -61,13 +61,14 @@ syn keyword cabalCategory contained
 	\ test-suite
 	\ source-repository
 	\ flag
+        \ foreign-library
 	\ custom-setup
 	\ common
 syn match cabalCategoryTitle contained /[^{]*\ze{\?/
 syn match cabalCategoryRegion
 	\ contains=cabalCategory,cabalCategoryTitle
 	\ nextgroup=cabalCategory skipwhite
-	\ /^\c\s*\(contained\|executable\|library\|benchmark\|test-suite\|source-repository\|flag\|custom-setup\|common\)\+\s*\%(.*$\|$\)/
+	\ /^\c\s*\(contained\|executable\|library\|benchmark\|test-suite\|source-repository\|flag\|foreign-library\|custom-setup\|common\)\+\s*\%(.*$\|$\)/
 syn keyword cabalTruth true false
 
 " cabalStatementRegion which limits the scope of cabalStatement keywords, this
