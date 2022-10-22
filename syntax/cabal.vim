@@ -4,7 +4,9 @@
 " Maintainer:   Marcin Szamotulski <profunctor@pm.me>
 " Previous Maintainer:	Vincent Berthoux <twinside@gmail.com>
 " File Types:   .cabal
-" Last Change:  21 Nov 2020
+" Last Change:  22 Oct 2022
+" v1.6: Added support for foreign-libraries
+"       Added highlighting for various fields 
 " v1.5: Incorporated changes from
 "       https://github.com/sdiehl/haskell-vim-proto/blob/master/vim/syntax/cabal.vim
 "       Use `syn keyword` instead of `syn match`.
