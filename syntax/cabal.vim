@@ -4,7 +4,8 @@
 " Maintainer:   Marcin Szamotulski <profunctor@pm.me>
 " Previous Maintainer:	Vincent Berthoux <twinside@gmail.com>
 " File Types:   .cabal
-" Last Change:  22 Oct 2022
+" Last Change: 7 Dec 2022
+" v1.7: Added support for the concise syntax of `tested-with`
 " v1.6: Added support for foreign-libraries
 "       Added highlighting for various fields 
 " v1.5: Incorporated changes from
@@ -171,6 +172,7 @@ syn keyword cabalStatement contained containedin=cabalStatementRegion
 	\ tested-with
         \ test-module
 	\ type
+        \ visibility
 	\ version
 	\ virtual-modules
 
@@ -181,11 +183,17 @@ syn match cabalVersionOperator contained
 " match version: `[%]\@<!` is to exclude `%20` in http addresses.
 syn match cabalVersion contained
 	\ /[%$_-]\@<!\<\d\+\%(\.\d\+\)*\%(\.\*\)\?\>/
+" a list of versions, e.g. `{ 8.10.7, 9.2.5, 9,4,3 }`
+syn match cabalVersionA contained
+        \ contains=cabalVersion
+        \ /\%([%$_-]\@<!\<\d\+\%(\.\d\+\)*\%(\.\*\)\?\>\|{[^}]\{-}}\)/
 " cabalVersionRegion which limits the scope of cabalVersion pattern.
+syn match cabalDelimiterA contained
+        \ /[{},]/
 syn match cabalVersionRegionA
-	\ contains=cabalVersionOperator,cabalVersion
+	\ contains=cabalVersionOperator,cabalDelimiterA,cabalVersionA
 	\ keepend
-	\ /\%(==\|\^\?>=\|<=\|<\|>\)\s*\d\+\%(\.\d\+\)*\%(\.\*\)\?\>/
+        \ /\%(==\|\^\?>=\|<=\|<\|>\)\s*\%(\d\+\%(\.\d\+\)*\%(\.\*\)\?\|\s*{[^}]\{-}}\)/
 " version inside `version: ...` 
 syn match cabalVersionRegionB
 	\ contains=cabalStatementRegion,cabalVersionOperator,cabalVersion
@@ -269,6 +277,7 @@ hi def link cabalConditional  Conditional
 hi def link cabalOperator     Operator
 hi def link cabalVersionOperator Operator
 hi def link cabalCompiler     Constant
+hi def link cabalDelimiterA   cabalVersion
 
 let b:current_syntax = "cabal"
 
