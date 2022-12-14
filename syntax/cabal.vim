@@ -145,6 +145,7 @@ syn keyword cabalStatement contained containedin=cabalStatementRegion
         \ lib-version-linux
 	\ license
 	\ license-file
+	\ license-files
 	\ location
 	\ main-is
 	\ maintainer
